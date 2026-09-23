@@ -237,3 +237,236 @@ Framework choice and quantity of code are not scoring criteria.
 ```
 
 Good luck. Build for reliability, not just for the happy-path demo.
+
+
+# Implementation Notes
+
+## 1. Project Overview
+
+This repository implements a reliable customer-support RAG agent for the Aster & Row ecommerce scenario.
+
+The agent supports:
+- Knowledge-base question answering with source citations.
+- Order lookup using `data/orders.json`.
+- Multi-turn conversation context.
+- Safe handling of missing or insufficient information.
+- Prompt-injection resistance for retrieved content.
+- Privacy-safe order responses.
+- Human handoff when information is insufficient or authoritative sources conflict.
+- Structured JSONL debug logging.
+- Deterministic evaluation across visible and original cases.
+
+## 2. Setup and Run
+
+Create and activate a virtual environment:
+
+`python3 -m venv .venv`
+
+`source .venv/bin/activate`
+
+Install dependencies:
+
+`pip install -r requirements.txt`
+
+Create `.env` from `.env.example` and provide the required Groq API key.
+
+Run the CLI:
+
+`python3 -m app`
+
+Run the test suite:
+
+`pytest -q`
+
+Run the evaluation suite:
+
+`python3 evaluation/run_evaluation.py`
+
+
+
+## 3. Configuration
+
+Required environment variables are documented in `.env.example`.
+
+No real credentials are committed to the repository.
+
+## 4. Model, Embeddings, Framework, and Storage
+
+- **LLM:** Groq-hosted language model configured through environment variables.
+- **Embeddings / retrieval:** Local knowledge-base retrieval implemented in `app/retrieval.py`.
+- **Application framework:** Python.
+- **Storage:** Markdown files in `knowledge-base/` for company knowledge and JSON in `data/orders.json` for mock order data.
+- **Conversation state:** In-memory session history maintained by the agent.
+
+The complete orders dataset is not placed in the model prompt. Order information is retrieved only when an order lookup is required.
+
+## 5. Architecture
+
+The main flow is:
+
+Customer Message
+→ SupportAgent
+→ Knowledge Retrieval / Order Lookup
+→ Response Logic
+→ Customer Answer + Sources / Human Handoff
+→ Structured Debug Log
+
+Retrieved documents and tool results are treated as untrusted data. Application-level instructions remain authoritative.
+
+## 6. Evaluation Results
+
+The final evaluation contains 20 cases: 15 supplied visible cases and 5 original cases.
+
+### Final result
+
+| Category | Passed |
+|---|---:|
+| Abstention | 1/1 |
+| Conversation | 1/1 |
+| Groundedness | 3/3 |
+| Multi-source grounding | 1/1 |
+| Privacy | 1/1 |
+| Prompt security | 1/1 |
+| Retrieval | 2/2 |
+| Safety | 1/1 |
+| Source conflict | 1/1 |
+| Tool data | 3/3 |
+| Tool reliability | 3/3 |
+| Tool use | 2/2 |
+| **Total** | **20/20** |
+
+### Baseline and improvement
+
+During final integration, the first clean evaluation run scored **19/20**. The remaining failure was the source-conflict case. The response already identified the two conflicting official sources and recommended human confirmation, but the deterministic evaluator required explicit wording identifying them as the **current official sources**.
+
+After strengthening the conflict-handling instruction, the final evaluation reached **20/20**.
+
+## 7. Test Results
+
+The automated regression suite passes:
+
+`16 passed`
+
+The evaluation suite passes:
+
+`VISIBLE CASES: 15/15`
+
+`ORIGINAL CASES: 5/5`
+
+`TOTAL: 20/20 passed`
+
+
+
+## 8. Bug Diary
+
+### Bug 1 — Evaluation script failed from repository root
+
+**Reproduction:** Run `python3 evaluation/run_evaluation.py`.
+
+**Root cause:** Python could not resolve the `app` package when the evaluation script was executed from the `evaluation/` directory context.
+
+**Fix:** Added the repository root to `sys.path` using the evaluation script's parent directory.
+
+**Regression test:** The documented evaluation command now runs successfully from the repository root and reports 20/20.
+
+### Bug 2 — Debug logging failed because of a missing datetime import
+
+**Reproduction:** Execute an agent request after enabling debug logging.
+
+**Root cause:** The logging implementation used `datetime` and `timezone` without importing them.
+
+**Fix:** Added the required datetime imports.
+
+**Regression test:** `pytest -q` passes with 16 tests.
+
+### Bug 3 — Debug logging failed because of a missing JSON import
+
+**Reproduction:** Execute an agent request after adding JSONL logging.
+
+**Root cause:** The logger used `json.dumps()` without importing the `json` module.
+
+**Fix:** Added the JSON import.
+
+**Regression test:** `pytest -q` passes with 16 tests and `logs/debug.jsonl` is generated correctly.
+
+### Bug 4 — Debug logs did not contain retrieved passages
+
+**Reproduction:** Inspect `logs/debug.jsonl` after a knowledge-base query.
+
+**Root cause:** The logging wrapper passed an empty retrieval list even though retrieval occurred inside `answer()`.
+
+**Fix:** Stored the latest retrieval results on the agent and passed them to the debug logger.
+
+**Regression test:** Debug logs now contain retrieved filenames, headings, and similarity scores.
+
+### Bug 5 — Source-conflict case failed deterministic evaluation
+
+**Reproduction:** Run `python3 evaluation/run_evaluation.py`.
+
+**Root cause:** The response said that the official sources conflict, while the deterministic evaluator required explicit identification of the **current official sources**.
+
+**Fix:** Strengthened the conflict-handling instruction so the response explicitly states that the current official sources conflict and recommends human confirmation.
+
+**Regression test:** The final evaluation now passes 20/20, including the source-conflict case.
+
+## 9. Observability
+
+Structured debug logs are written to:
+
+`logs/debug.jsonl`
+
+Each log entry can contain:
+- Current user message.
+- Number of conversation history turns.
+- Retrieved knowledge-base filenames.
+- Retrieved headings.
+- Retrieval scores.
+- Sanitized tool calls and order IDs.
+- Final response.
+- Human-handoff status.
+- Errors and fallback information.
+
+Secrets and private order fields are not logged.
+
+The `logs/` directory is excluded from version control.
+
+
+
+## 10. Known Limitations and Production Improvements
+
+Before production, I would improve:
+
+- Persistent conversation/session storage instead of in-memory history.
+- Stronger retrieval evaluation and ranking calibration.
+- More extensive tests for paraphrases and adversarial inputs.
+- A production-grade identity/authentication layer for real customer accounts.
+- Centralized log management and monitoring.
+- Explicit permission boundaries for future action-taking tools.
+- Automated evaluation in CI/CD.
+- More comprehensive monitoring for retrieval failures and unexpected tool behavior.
+- Better source versioning and conflict-management policies.
+
+## 11. AI Coding Tools
+
+AI assistance was used during development for:
+- Exploring implementation approaches.
+- Debugging Python errors.
+- Reviewing test and evaluation failures.
+- Improving documentation and README structure.
+
+AI-generated suggestions were treated as suggestions rather than authoritative code.
+
+One incomplete suggestion involved debug logging: the initial logging approach recorded an empty retrieval list even though retrieval occurred inside `answer()`. This was identified during manual inspection against the assignment's observability requirements and corrected by passing the actual retrieved results to the logger.
+
+## 12. Demo
+
+A 2–4 minute demo should demonstrate:
+
+1. A knowledge-base question with citations.
+2. An order lookup.
+3. A multi-turn conversation.
+4. A case where the agent refuses to guess or recommends human assistance.
+5. The evaluation suite running.
+
+Add the final GIF or video to this section before submission.
+
