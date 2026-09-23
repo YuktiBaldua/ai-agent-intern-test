@@ -460,7 +460,8 @@ One incomplete suggestion involved debug logging: the initial logging approach r
 
 ## 12. Demo
 
-A 2–4 minute demo should demonstrate:
+
+The following 2-minute 25-second demo shows:
 
 1. A knowledge-base question with citations.
 2. An order lookup.
@@ -468,5 +469,6 @@ A 2–4 minute demo should demonstrate:
 4. A case where the agent refuses to guess or recommends human assistance.
 5. The evaluation suite running.
 
-Add the final GIF or video to this section before submission.
+[Watch the AI Agent Demo](./AI_Agent_Demo.mp4)
 
+<video src="./AI_Agent_Demo.mp4" controls width="800"></video>
