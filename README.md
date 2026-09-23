@@ -461,7 +461,7 @@ One incomplete suggestion involved debug logging: the initial logging approach r
 ## 12. Demo
 
 
-The following 2-minute 25-second demo shows:
+The following 3-minute 34-second demo shows:
 
 1. A knowledge-base question with citations.
 2. An order lookup.
